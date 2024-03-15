@@ -1,0 +1,39 @@
+credentials:
+  usernames:
+    zefsolimp: # username
+      email: zefsolimp@gmail.com #email address
+      logged_in: false # Check if user is logged in (Will be managed automatically)
+      name: Zefs Olimp # name
+      password: 'qwerty123!' #needs to be hashed password
+    
+    j.aminov@koinotinav.com:
+      email: j.aminov@koinotinav.com
+      logged_in: false
+      name: Jahon Aminov
+      password: Jahon4746!
+    
+    a.malaev@koinotinav.com:
+      email: a.malaev@koinotinav.com
+      logged_in: false
+      name: Abdulfaiz Malaev
+      password: Abdulfaiz6687!
+    
+    m.ramziyor@koinotinav.com:
+      email: m.ramziyor@koinotinav.com
+      logged_in: false
+      name: Ramziyor Mahmadyorzoda
+      password: Ramziyor7777!
+
+    ismoilzod.mustafo@gmail.com:
+      email: ismoilzod.mustafo@gmail.com
+      logged_in: false
+      name: Mustafo Ismoilov
+      password: Mustafo5533!
+
+cookie:
+  expiry_days: 30
+  key: random_signature_key # Must be string
+  name: random_cookie_name
+preauthorized:
+  emails:
+  - zefsolimp@gmail.com
