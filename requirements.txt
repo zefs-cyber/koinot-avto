@@ -9,3 +9,4 @@ streamlit==1.31.1
 streamlit_authenticator==0.3.1
 streamlit_dynamic_filters==0.1.5
 streamlit-aggrid==0.3.4.post3
+openpyxl==3.1.2
