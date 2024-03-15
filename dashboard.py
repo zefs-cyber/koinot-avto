@@ -284,7 +284,7 @@ fields = {
 
 authenticator.login(fields=fields, max_concurrent_users=1, location='main')
 if st.session_state["authentication_status"]:
-    authenticator.logout(f'{st.session_state['name']} Logout', 'sidebar')
+    authenticator.logout(f"{st.session_state['name']} Logout", 'sidebar')
     display_dashboard()
 elif st.session_state["authentication_status"] == False:
     st.error('Username/password is incorrect')
