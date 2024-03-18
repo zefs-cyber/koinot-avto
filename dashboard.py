@@ -94,7 +94,7 @@ def load_data():
 def display_dashboard():
 
     df_today, df_sold = load_data()
-    print(df_today.columns)
+    st.text(df_today.columns)
     new_names_today = ['Пост', 
                 'PostID', 
                 'Имя автора', 
