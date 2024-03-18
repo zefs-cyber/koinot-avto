@@ -13,7 +13,10 @@ import streamlit_authenticator as stauth
 import yaml
 from yaml.loader import SafeLoader
 import hashlib
+from datetime import datetime, timedelta
+import logging
 
+logging.basicConfig(filename='login_log.txt', level=logging.INFO, format='%(asctime)s - %(message)s')
 st.set_page_config(page_title='Коиноти Нав', page_icon=':bar_chart', layout='wide')
 
 def filter_dataframe(df: pd.DataFrame, filters: dict) -> pd.DataFrame:
@@ -43,18 +46,48 @@ def filter_dataframe(df: pd.DataFrame, filters: dict) -> pd.DataFrame:
     
     return filtered_df
 
-@st.cache_data
+@st.cache_data # Cache the original DataFrame
 def load_data():
-    df_today = pd.read_excel('export/ttoday_2024-03-15.xlsx')
-    df_sold = pd.read_excel('export/sold_2024-03-15.xlsx')
-    df_today['AuthorID'] = pd.to_numeric(df_today['AuthorID'], errors='coerce')
-    df_sold['DatePublished'] = pd.to_datetime(df_sold['DatePublished'], format='%d.%m.%Y %H:%M')
-    df_sold['sold_date'] = pd.to_datetime(df_sold['sold_date'], format='%d.%m.%Y %H:%M')
+    """
+    This function loads the data from the export files.
 
-    # Calculate the time taken to sell each model in hours
-    df_sold['selling_time_hours'] = round((df_sold['sold_date'] - df_sold['DatePublished']).dt.total_seconds() / 86400, 2) 
+    Returns
+    -------
+    tuple
+        A tuple containing the dataframes for today and sold posts.
 
-    return df_today, df_sold
+    """
+    # Get today's date
+    current_date = datetime.now().date()
+
+    # Define the maximum number of days to go back in search
+    max_days_back = 7
+
+    for i in range(max_days_back):
+        # Generate file names based on the current date
+        current_file_date = (current_date - timedelta(days=i)).strftime('%Y-%m-%d')
+        today_file = f'export/ttoday_{current_file_date}.xlsx'
+        sold_file = f'export/sold_{current_file_date}.xlsx'
+        print(today_file, sold_file)
+        try:
+            # Attempt to load the files
+            df_today = pd.read_excel(today_file)
+            df_sold = pd.read_excel(sold_file)
+
+            # Convert columns to appropriate data types
+            df_today['AuthorID'] = pd.to_numeric(df_today['AuthorID'], errors='coerce')
+            df_sold['DatePublished'] = pd.to_datetime(df_sold['DatePublished'], format='%d.%m.%Y %H:%M')
+            df_sold['sold_date'] = pd.to_datetime(df_sold['sold_date'], format='%d.%m.%Y %H:%M')
+
+            # Calculate the time taken to sell each model in hours
+            df_sold['selling_time_hours'] = round((df_sold['sold_date'] - df_sold['DatePublished']).dt.total_seconds() / 86400, 2) 
+
+            return df_today, df_sold
+        except FileNotFoundError:
+            pass  # Continue to the next date if files are not found
+
+    print("No files found within the specified date range.")
+    return None, None
 
 def display_dashboard():
 
@@ -173,68 +206,17 @@ def display_dashboard():
 
 
     main_tab1, main_tab2 = st.tabs(["📈Charts", "🗃Table"])
-    chart_tabs = main_tab1.tabs(['🛢️Вид топлива', '🏙️Города', '🚙Кузов', '📆Год выпуска', '⚙️Коробка передач', '🌈Цвет', '🛠️Объем двигателя', '🏎️Модели', '👨‍💼Общее'])
+    chart_tabs = main_tab1.tabs(['🏎️Модели', '👨‍💼Общее', '🛢️Вид топлива', '🏙️Города', '🚙Кузов', '📆Год выпуска', '⚙️Коробка передач', '🌈Цвет', '🛠️Объем двигателя'])
 
-    #Fueltype graphs
+        #Объем двигателя graphs
     with chart_tabs[0]:
-        g1, g2 = chart_tabs[0].columns([2,1])
-        fueltypes = filtered_df['Вид топлива'].value_counts()
-        fuel_df = pd.DataFrame(fueltypes)
-        fuel_df['Percentage'] = round((fuel_df['count'] / fuel_df['count'].sum()) * 100, 1)
-        g1.container(border=True).bar_chart(fueltypes, color='#3c324c')
-        g2.dataframe(fuel_df)
-
-    #City graphs
-    with chart_tabs[1]:
-        citytypes = filtered_df['Город'].value_counts()
-        chart_tabs[1].container(border=True).bar_chart(citytypes, color='#3c324c')
-
-    #Kuzov graphs
-    with chart_tabs[2]:
-        g1, g2 = chart_tabs[2].columns(2)
-        kuzovtypes = filtered_df['Кузов'].value_counts()
-        kuzov_df = pd.DataFrame(kuzovtypes)
-        kuzov_df['Percentage'] = round((kuzov_df['count'] / kuzov_df['count'].sum()) * 100, 1)
-        g1.container(border=True).bar_chart(kuzovtypes, color='#3c324c')
-        g2.dataframe(kuzov_df)
-
-    #Year graphs
-    with chart_tabs[3]:
-        yeartypes = filtered_df['Год выпуска'].value_counts()
-        chart_tabs[3].container(border=True).bar_chart(yeartypes, color='#3c324c')
-
-    #Коробка передач graphs
-    with chart_tabs[4]:
-        g1, g2 = chart_tabs[4].columns(2)
-        korobkatypes = filtered_df['Коробка передач'].value_counts()
-        korobka_df = pd.DataFrame(korobkatypes)
-        korobka_df['Percentage'] = round((korobka_df['count'] / korobka_df['count'].sum()) * 100, 1)
-        g1.container(border=True).bar_chart(korobkatypes, color='#3c324c')
-        g2.dataframe(korobka_df)
-
-    #Цвет graphs
-    with chart_tabs[5]:
-        g1, g2 = chart_tabs[5].columns(2)
-        colortypes = filtered_df['Цвет'].value_counts()
-        color_df = pd.DataFrame(colortypes)
-        color_df['Percentage'] = round((color_df['count'] / color_df['count'].sum()) * 100, 1)
-        g1.container(border=True).bar_chart(colortypes, color='#3c324c')
-        g2.dataframe(color_df)
-
-    #Объем двигателя graphs
-    with chart_tabs[6]:
-        volumetypes = filtered_df['Объем двигателя'].value_counts()
-        chart_tabs[6].container(border=True).area_chart(volumetypes, color='#3c324c')
-
-    #Объем двигателя graphs
-    with chart_tabs[7]:
         modeltypes = filtered_df['Модель'].value_counts().sort_values(ascending=False)
-        c1, c2 = chart_tabs[7].columns([3, 1])
+        c1, c2 = chart_tabs[0].columns([3, 1])
         c1.container(border=True).bar_chart(modeltypes.head(30), color='#3c324c')
         c2.dataframe(modeltypes,width=400)
 
     #Объем двигателя graphs
-    with chart_tabs[8]:
+    with chart_tabs[1]:
         top_authors = filtered_df['AuthorID'].value_counts().sort_values(ascending=False).head(30)
         top_authors_df = pd.DataFrame({
             'AuthorID': top_authors.index,
@@ -246,14 +228,70 @@ def display_dashboard():
         # Get value counts based on the date without time, formatting dates as strings
         month_sales = df_sold['sold_date'].dt.strftime('%Y-%m-%d').value_counts().sort_index(ascending=False)
         # authors = top_authors['AuthorID']
-        chart_tabs[8].header('Топ 30 самых активных продавцов')
-        c1, c2 = chart_tabs[8].columns([3, 1])
+        chart_tabs[1].header('Топ 30 самых активных продавцов')
+        c1, c2 = chart_tabs[1].columns([3, 1])
         c1.container(border=True).bar_chart(top_authors, color='#3c324c')
         c2.dataframe(top_authors_df, hide_index=True, width=400)
-        chart_tabs[8].header('Продажи за последние 30 дней')
-        chart_tabs[8].container(border=True).bar_chart(month_sales, color='#3c324c')
-        chart_tabs[8].header('Топ 30 продаваемых моделей')
-        chart_tabs[8].container(border=True).bar_chart(most_selling_models, color='#3c324c')
+        chart_tabs[1].header('Продажи за последние 30 дней')
+        chart_tabs[1].container(border=True).bar_chart(month_sales, color='#3c324c')
+        chart_tabs[1].header('Топ 30 продаваемых моделей')
+        chart_tabs[1].container(border=True).bar_chart(most_selling_models, color='#3c324c')
+
+    #Fueltype graphs
+    with chart_tabs[2]:
+        g1, g2 = chart_tabs[2].columns([2,1])
+        fueltypes = filtered_df['Вид топлива'].value_counts()
+        fuel_df = pd.DataFrame(fueltypes)
+        fuel_df['Percentage'] = round((fuel_df['count'] / fuel_df['count'].sum()) * 100, 1)
+        g1.container(border=True).bar_chart(fueltypes, color='#3c324c')
+        g2.dataframe(fuel_df)
+
+    #City graphs
+    with chart_tabs[3]:
+        citytypes = filtered_df['Город'].value_counts()
+        chart_tabs[3].container(border=True).bar_chart(citytypes, color='#3c324c')
+
+    #Kuzov graphs
+    with chart_tabs[4]:
+        g1, g2 = chart_tabs[4].columns(2)
+        kuzovtypes = filtered_df['Кузов'].value_counts()
+        kuzov_df = pd.DataFrame(kuzovtypes)
+        kuzov_df['Percentage'] = round((kuzov_df['count'] / kuzov_df['count'].sum()) * 100, 1)
+        g1.container(border=True).bar_chart(kuzovtypes, color='#3c324c')
+        g2.dataframe(kuzov_df)
+
+    #Year graphs
+    with chart_tabs[5]:
+        yeartypes = filtered_df['Год выпуска'].value_counts()
+        average_price_per_year_df = filtered_df.groupby('Год выпуска')['Цена'].mean().reset_index()
+
+        # Convert the 'Цена' column (average price) to integers
+        average_price_per_year_df['Цена'] = average_price_per_year_df['Цена'].astype(int)
+        chart_tabs[5].container(border=True).bar_chart(yeartypes, color='#3c324c')
+        chart_tabs[5].dataframe(average_price_per_year_df, width=400)
+
+    #Коробка передач graphs
+    with chart_tabs[6]:
+        g1, g2 = chart_tabs[6].columns(2)
+        korobkatypes = filtered_df['Коробка передач'].value_counts()
+        korobka_df = pd.DataFrame(korobkatypes)
+        korobka_df['Percentage'] = round((korobka_df['count'] / korobka_df['count'].sum()) * 100, 1)
+        g1.container(border=True).bar_chart(korobkatypes, color='#3c324c')
+        g2.dataframe(korobka_df)
+
+    #Цвет graphs
+    with chart_tabs[7]:
+        g1, g2 = chart_tabs[7].columns(2)
+        colortypes = filtered_df['Цвет'].value_counts()
+        color_df = pd.DataFrame(colortypes)
+        color_df['Percentage'] = round((color_df['count'] / color_df['count'].sum()) * 100, 1)
+        g1.container(border=True).bar_chart(colortypes, color='#3c324c')
+        g2.dataframe(color_df)
+
+    #Объем двигателя graphs
+    with chart_tabs[8]:
+        volumetypes = filtered_df['Объем двигателя'].value_counts()
+        chart_tabs[8].container(border=True).area_chart(volumetypes, color='#3c324c')
 
     # Tables
     c1, c2 = main_tab2.columns([2,1])
@@ -263,9 +301,11 @@ def display_dashboard():
     # Display as a table
     c2.dataframe(grouped_data, width=400)
 
+# Loading config for webpage and all registered accounts
 with open('config.yaml') as file:
     config = yaml.load(file, Loader=SafeLoader)
 
+# Initializing an Authenticator object with provided configuration
 authenticator = stauth.Authenticate(
     config['credentials'],
     config['cookie']['name'],
@@ -274,6 +314,7 @@ authenticator = stauth.Authenticate(
     config['preauthorized']
 )
 
+# Fields required for authentication
 fields = {
     'Form name': 'Login',
     'Username': 'Username',
@@ -281,12 +322,18 @@ fields = {
     'Login': 'Login',
 }
 
-
+# Attempting login with provided fields and settings
 authenticator.login(fields=fields, max_concurrent_users=1, location='main')
+
+# Checking authentication status
 if st.session_state["authentication_status"]:
+    # Logging out if authenticated and displaying dashboard
+    logging.info(f"User '{st.session_state['name']}' logged in.")
     authenticator.logout(f"{st.session_state['name']} Logout", 'sidebar')
     display_dashboard()
 elif st.session_state["authentication_status"] == False:
+    # Displaying error message if authentication fails
     st.error('Username/password is incorrect')
 elif st.session_state["authentication_status"] == None:
+    # Displaying warning if authentication status is not determined
     st.warning('Please enter your username and password')
