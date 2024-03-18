@@ -72,7 +72,6 @@ def load_data():
             # Attempt to load the files
             df_today = pd.read_excel(today_file)
             df_sold = pd.read_excel(sold_file)
-            st.text(df_today.columns)
             # Convert columns to appropriate data types
             df_today['AuthorID'] = pd.to_numeric(df_today['AuthorID'], errors='coerce')
             df_sold['DatePublished'] = pd.to_datetime(df_sold['DatePublished'], format='%d.%m.%Y %H:%M')
