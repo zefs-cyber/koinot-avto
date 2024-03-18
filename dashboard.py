@@ -206,17 +206,24 @@ def display_dashboard():
 
 
     main_tab1, main_tab2 = st.tabs(["📈Charts", "🗃Table"])
-    chart_tabs = main_tab1.tabs(['🏎️Модели', '👨‍💼Общее', '🛢️Вид топлива', '🏙️Города', '🚙Кузов', '📆Год выпуска', '⚙️Коробка передач', '🌈Цвет', '🛠️Объем двигателя'])
+    chart_tabs = main_tab1.tabs(['🏎️Модели', '📋Бренды', '👨‍💼Общее', '🛢️Вид топлива', '🏙️Города', '🚙Кузов', '📆Год выпуска', '⚙️Коробка передач', '🌈Цвет', '🛠️Объем двигателя'])
 
-        #Объем двигателя graphs
+    #Модели graphs
     with chart_tabs[0]:
         modeltypes = filtered_df['Модель'].value_counts().sort_values(ascending=False)
         c1, c2 = chart_tabs[0].columns([3, 1])
         c1.container(border=True).bar_chart(modeltypes.head(30), color='#3c324c')
         c2.dataframe(modeltypes,width=400)
 
-    #Объем двигателя graphs
+    #Brands graphs
     with chart_tabs[1]:
+        modeltypes = filtered_df['Марка'].value_counts().sort_values(ascending=False)
+        c1, c2 = chart_tabs[1].columns([3, 1])
+        c1.container(border=True).bar_chart(modeltypes.head(30), color='#3c324c')
+        c2.dataframe(modeltypes,width=400)
+
+    #Общее graphs
+    with chart_tabs[2]:
         top_authors = filtered_df['AuthorID'].value_counts().sort_values(ascending=False).head(30)
         top_authors_df = pd.DataFrame({
             'AuthorID': top_authors.index,
@@ -228,18 +235,18 @@ def display_dashboard():
         # Get value counts based on the date without time, formatting dates as strings
         month_sales = df_sold['sold_date'].dt.strftime('%Y-%m-%d').value_counts().sort_index(ascending=False)
         # authors = top_authors['AuthorID']
-        chart_tabs[1].header('Топ 30 самых активных продавцов')
-        c1, c2 = chart_tabs[1].columns([3, 1])
+        chart_tabs[2].header('Топ 30 самых активных продавцов')
+        c1, c2 = chart_tabs[2].columns([3, 1])
         c1.container(border=True).bar_chart(top_authors, color='#3c324c')
         c2.dataframe(top_authors_df, hide_index=True, width=400)
-        chart_tabs[1].header('Продажи за последние 30 дней')
-        chart_tabs[1].container(border=True).bar_chart(month_sales, color='#3c324c')
-        chart_tabs[1].header('Топ 30 продаваемых моделей')
-        chart_tabs[1].container(border=True).bar_chart(most_selling_models, color='#3c324c')
+        chart_tabs[2].header('Продажи за последние 30 дней')
+        chart_tabs[2].container(border=True).area_chart(month_sales, color='#3c324c')
+        chart_tabs[2].header('Топ 30 продаваемых моделей')
+        chart_tabs[2].container(border=True).bar_chart(most_selling_models, color='#3c324c')
 
     #Fueltype graphs
-    with chart_tabs[2]:
-        g1, g2 = chart_tabs[2].columns([2,1])
+    with chart_tabs[3]:
+        g1, g2 = chart_tabs[3].columns([2,1])
         fueltypes = filtered_df['Вид топлива'].value_counts()
         fuel_df = pd.DataFrame(fueltypes)
         fuel_df['Percentage'] = round((fuel_df['count'] / fuel_df['count'].sum()) * 100, 1)
@@ -247,13 +254,13 @@ def display_dashboard():
         g2.dataframe(fuel_df)
 
     #City graphs
-    with chart_tabs[3]:
+    with chart_tabs[4]:
         citytypes = filtered_df['Город'].value_counts()
-        chart_tabs[3].container(border=True).bar_chart(citytypes, color='#3c324c')
+        chart_tabs[4].container(border=True).bar_chart(citytypes, color='#3c324c')
 
     #Kuzov graphs
-    with chart_tabs[4]:
-        g1, g2 = chart_tabs[4].columns(2)
+    with chart_tabs[5]:
+        g1, g2 = chart_tabs[5].columns(2)
         kuzovtypes = filtered_df['Кузов'].value_counts()
         kuzov_df = pd.DataFrame(kuzovtypes)
         kuzov_df['Percentage'] = round((kuzov_df['count'] / kuzov_df['count'].sum()) * 100, 1)
@@ -261,18 +268,18 @@ def display_dashboard():
         g2.dataframe(kuzov_df)
 
     #Year graphs
-    with chart_tabs[5]:
+    with chart_tabs[6]:
         yeartypes = filtered_df['Год выпуска'].value_counts()
         average_price_per_year_df = filtered_df.groupby('Год выпуска')['Цена'].mean().reset_index()
 
         # Convert the 'Цена' column (average price) to integers
         average_price_per_year_df['Цена'] = average_price_per_year_df['Цена'].astype(int)
-        chart_tabs[5].container(border=True).bar_chart(yeartypes, color='#3c324c')
-        chart_tabs[5].dataframe(average_price_per_year_df, width=400)
+        chart_tabs[6].container(border=True).bar_chart(yeartypes, color='#3c324c')
+        chart_tabs[6].dataframe(average_price_per_year_df, width=400)
 
     #Коробка передач graphs
-    with chart_tabs[6]:
-        g1, g2 = chart_tabs[6].columns(2)
+    with chart_tabs[7]:
+        g1, g2 = chart_tabs[7].columns(2)
         korobkatypes = filtered_df['Коробка передач'].value_counts()
         korobka_df = pd.DataFrame(korobkatypes)
         korobka_df['Percentage'] = round((korobka_df['count'] / korobka_df['count'].sum()) * 100, 1)
@@ -280,8 +287,8 @@ def display_dashboard():
         g2.dataframe(korobka_df)
 
     #Цвет graphs
-    with chart_tabs[7]:
-        g1, g2 = chart_tabs[7].columns(2)
+    with chart_tabs[8]:
+        g1, g2 = chart_tabs[8].columns(2)
         colortypes = filtered_df['Цвет'].value_counts()
         color_df = pd.DataFrame(colortypes)
         color_df['Percentage'] = round((color_df['count'] / color_df['count'].sum()) * 100, 1)
@@ -289,9 +296,9 @@ def display_dashboard():
         g2.dataframe(color_df)
 
     #Объем двигателя graphs
-    with chart_tabs[8]:
+    with chart_tabs[9]:
         volumetypes = filtered_df['Объем двигателя'].value_counts()
-        chart_tabs[8].container(border=True).area_chart(volumetypes, color='#3c324c')
+        chart_tabs[9].container(border=True).area_chart(volumetypes, color='#3c324c')
 
     # Tables
     c1, c2 = main_tab2.columns([2,1])
