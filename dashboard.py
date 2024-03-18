@@ -68,12 +68,11 @@ def load_data():
         current_file_date = (current_date - timedelta(days=i)).strftime('%Y-%m-%d')
         today_file = f'export/ttoday_{current_file_date}.xlsx'
         sold_file = f'export/sold_{current_file_date}.xlsx'
-        print(today_file, sold_file)
         try:
             # Attempt to load the files
             df_today = pd.read_excel(today_file)
             df_sold = pd.read_excel(sold_file)
-
+            st.text(df_today.columns)
             # Convert columns to appropriate data types
             df_today['AuthorID'] = pd.to_numeric(df_today['AuthorID'], errors='coerce')
             df_sold['DatePublished'] = pd.to_datetime(df_sold['DatePublished'], format='%d.%m.%Y %H:%M')
@@ -94,7 +93,6 @@ def load_data():
 def display_dashboard():
 
     df_today, df_sold = load_data()
-    st.text(df_today.columns)
     new_names_today = ['Пост', 
                 'PostID', 
                 'Имя автора', 
