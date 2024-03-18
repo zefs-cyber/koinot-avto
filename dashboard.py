@@ -16,7 +16,7 @@ import hashlib
 from datetime import datetime, timedelta
 import logging
 
-logging.basicConfig(filename='login_log.txt', level=logging.INFO, format='%(asctime)s - %(message)s')
+logging.basicConfig(filename='login_log.log', level=logging.INFO, format='%(asctime)s - %(message)s')
 st.set_page_config(page_title='Коиноти Нав', page_icon=':bar_chart', layout='wide')
 
 def filter_dataframe(df: pd.DataFrame, filters: dict) -> pd.DataFrame:
