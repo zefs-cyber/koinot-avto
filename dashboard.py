@@ -81,8 +81,10 @@ def load_data():
 
             # Calculate the time taken to sell each model in hours
             df_sold['selling_time_hours'] = round((df_sold['sold_date'] - df_sold['DatePublished']).dt.total_seconds() / 86400, 2) 
+            df_link = pd.read_excel('links.xlsx')
+            merged_df = pd.merge(df_today, df_link, on='PostID', how='left')
 
-            return df_today, df_sold
+            return merged_df, df_sold
         except FileNotFoundError:
             pass  # Continue to the next date if files are not found
 
@@ -92,6 +94,7 @@ def load_data():
 def display_dashboard():
 
     df_today, df_sold = load_data()
+    print(df_today.columns)
     new_names_today = ['Пост', 
                 'PostID', 
                 'Имя автора', 
@@ -112,7 +115,9 @@ def display_dashboard():
                 'Коробка передач',
                 'Просмотры', 
                 'Марка', 
-                'Модель']
+                'Модель',
+                'Link']
+    
     new_names_sold = ['Пост', 
                 'PostID', 
                 'Имя автора', 
@@ -136,6 +141,7 @@ def display_dashboard():
                 'Марка', 
                 'Модель',
                 'selling_time_hours']
+    
     filters =  [
                 'Марка', 
                 'Модель',
@@ -154,7 +160,8 @@ def display_dashboard():
                 'Город', 
                 'Год выпуска',
                 'Вид топлива', 
-                'Состояние']
+                'Состояние',
+                'Link']
 
     df_today.columns = new_names_today
     df_sold.columns = new_names_sold
