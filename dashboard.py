@@ -73,6 +73,7 @@ def load_data():
             # Attempt to load the files
             df_today = pd.read_excel(today_file)
             df_sold = pd.read_excel(sold_file)
+            print(df_today.columns, df_sold.columns)
 
             # Convert columns to appropriate data types
             df_today['AuthorID'] = pd.to_numeric(df_today['AuthorID'], errors='coerce')
@@ -114,6 +115,7 @@ def display_dashboard():
                 'Просмотры', 
                 'Марка', 
                 'Модель']
+    
     new_names_sold = ['Пост', 
                 'PostID', 
                 'Имя автора', 
@@ -137,6 +139,7 @@ def display_dashboard():
                 'Марка', 
                 'Модель',
                 'selling_time_hours']
+    
     filters =  [
                 'Марка', 
                 'Модель',
@@ -148,6 +151,7 @@ def display_dashboard():
                 'Цвет',
                 'Растаможен в РТ', 
                 'Состояние']
+    
     display_columns = [
                 'Марка', 
                 'Модель',
