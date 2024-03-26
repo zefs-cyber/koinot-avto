@@ -98,6 +98,7 @@ def app(df_today, df_sold):
     display_columns = [
                 "Марка", 
                 "Модель",
+                "Просмотры",
                 "Цена", 
                 "Город", 
                 "Год выпуска",
@@ -193,9 +194,13 @@ def app(df_today, df_sold):
         # Group by date and count the number of publications made on each day
         publications_per_day = filtered_df.groupby("Дата публикации").size().sort_values(ascending=False)
         chart_tabs[2].header("Количество заявок за последние 30 дней")
-        chart_tabs[2].area_chart(publications_per_day.head(30), color="#3c324c")
+        c1, c2 = chart_tabs[2].columns([3, 1])
+        c1.area_chart(publications_per_day.head(30), color="#3c324c")
+        c2.dataframe(publications_per_day, width=400)
         chart_tabs[2].header("Количество просмотров за последние 30 дней")
-        chart_tabs[2].area_chart(views_per_day.head(30), color="#3c324c")
+        c1, c2 = chart_tabs[2].columns([3, 1])
+        c1.area_chart(views_per_day.head(30), color="#3c324c")
+        c2.dataframe(views_per_day, width=400)
 
     #Общее graphs
     with chart_tabs[3]:
@@ -220,9 +225,13 @@ def app(df_today, df_sold):
         c1.container(border=True).bar_chart(top_authors, color="#3c324c")
         c2.dataframe(top_authors_df, hide_index=True, width=400)
         chart_tabs[3].header("Продажи за последние 30 дней")
-        chart_tabs[3].container(border=True).area_chart(month_sales, color="#3c324c")
+        c1, c2 = chart_tabs[3].columns([3, 1])
+        c1.container(border=True).area_chart(month_sales, color="#3c324c")
+        c2.dataframe(month_sales, width=400)
         chart_tabs[3].header("Топ 30 продаваемых моделей")
-        chart_tabs[3].container(border=True).bar_chart(most_selling_models, color="#3c324c")
+        c1, c2 = chart_tabs[3].columns([3, 1])
+        c1.container(border=True).bar_chart(most_selling_models, color="#3c324c")
+        c2.dataframe(most_selling_models, width=400)
 
     #Fueltype graphs
     with chart_tabs[4]:
