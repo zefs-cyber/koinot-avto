@@ -1,23 +1,53 @@
 import pandas as pd
 import streamlit as st
 from streamlit_dynamic_filters import DynamicFilters
-import plotly.express as px
-from st_aggrid import AgGrid
-import pygwalker as pyg
-import os
-import warnings
-import seaborn as sns
-from matplotlib import pyplot as plt
-import plotly.figure_factory as ff
+from streamlit_option_menu import option_menu
 import streamlit_authenticator as stauth
 import yaml
 from yaml.loader import SafeLoader
-import hashlib
 from datetime import datetime, timedelta
 import logging
+import SomonTJ, Tamozhnya 
 
-logging.basicConfig(filename='login_log.txt', level=logging.INFO, format='%(asctime)s - %(message)s')
-st.set_page_config(page_title='Коиноти Нав', page_icon=':bar_chart', layout='wide')
+st.set_page_config(page_title='Коиноти Нав', page_icon=':bar_chart', layout='wide',)
+
+@st.cache_data # Cache the original DataFrame
+def load_data():
+    # Get today's date
+    current_date = datetime.now().date()
+
+    # Define the maximum number of days to go back in search
+    max_days_back = 7
+
+    for i in range(max_days_back):
+        # Generate file names based on the current date
+        current_file_date = (current_date - timedelta(days=i)).strftime('%Y-%m-%d')
+        today_file = f'export/ttoday_{current_file_date}.xlsx'
+        sold_file = f'export/sold_{current_file_date}.xlsx'
+        try:
+            # Attempt to load the files
+            df_today = pd.read_excel(today_file)
+            df_sold = pd.read_excel(sold_file)
+
+            # Convert columns to appropriate data types
+            df_today['AuthorID'] = pd.to_numeric(df_today['AuthorID'], errors='coerce')
+            df_sold['DatePublished'] = pd.to_datetime(df_sold['DatePublished'], format='%d.%m.%Y %H:%M')
+            df_sold['sold_date'] = pd.to_datetime(df_sold['sold_date'], format='%d.%m.%Y %H:%M')
+
+            # Calculate the time taken to sell each model in hours
+            df_sold['selling_time_hours'] = round((df_sold['sold_date'] - df_sold['DatePublished']).dt.total_seconds() / 86400, 2) 
+            df_link = pd.read_excel('links.xlsx')
+            merged_df = pd.merge(df_today, df_link, on='PostID', how='left')
+            exctracted = pd.read_excel('tamozhnya/extracted.xlsx')
+            exctracted['year'] = exctracted['year'].fillna(0).astype(int)
+            exctracted['year'] = exctracted['year'].astype(int)
+
+            return merged_df, df_sold, exctracted
+        except FileNotFoundError:
+            pass  # Continue to the next date if files are not found
+
+    print("No files found within the specified date range.")
+    return None, None, None
 
 def filter_dataframe(df: pd.DataFrame, filters: dict) -> pd.DataFrame:
     """
@@ -46,53 +76,41 @@ def filter_dataframe(df: pd.DataFrame, filters: dict) -> pd.DataFrame:
     
     return filtered_df
 
-@st.cache_data # Cache the original DataFrame
-def load_data():
-    """
-    This function loads the data from the export files.
 
-    Returns
-    -------
-    tuple
-        A tuple containing the dataframes for today and sold posts.
+class Myfilter:
+    def __init__(self, df, filters):
+        self.df = df
+        self.filters = filters
+        self.results = []
+        self.create_fillters()
+    
+    def create_fillters(self):
+        with st.sidebar:
+            for i in self.filters:
+                self.filters[i] = st.sidebar.multiselect(i, self.filters[i])
 
-    """
-    # Get today's date
-    current_date = datetime.now().date()
+    def reset_filters(self):
+        copy_filters = st.session_state['filters'].copy()
+        for key in st.session_state['filters']:
+            if key not in self.filters:
+                del copy_filters[key]
 
-    # Define the maximum number of days to go back in search
-    max_days_back = 7
+        for key in self.filters:
+            if key not in copy_filters.keys():
+                copy_filters[key] = []
 
-    for i in range(max_days_back):
-        # Generate file names based on the current date
-        current_file_date = (current_date - timedelta(days=i)).strftime('%Y-%m-%d')
-        today_file = f'export/ttoday_{current_file_date}.xlsx'
-        sold_file = f'export/sold_{current_file_date}.xlsx'
-        try:
-            # Attempt to load the files
-            df_today = pd.read_excel(today_file)
-            df_sold = pd.read_excel(sold_file)
-            # Convert columns to appropriate data types
-            df_today['AuthorID'] = pd.to_numeric(df_today['AuthorID'], errors='coerce')
-            df_sold['DatePublished'] = pd.to_datetime(df_sold['DatePublished'], format='%d.%m.%Y %H:%M')
-            df_sold['sold_date'] = pd.to_datetime(df_sold['sold_date'], format='%d.%m.%Y %H:%M')
-
-            # Calculate the time taken to sell each model in hours
-            df_sold['selling_time_hours'] = round((df_sold['sold_date'] - df_sold['DatePublished']).dt.total_seconds() / 86400, 2) 
-            df_link = pd.read_excel('links.xlsx')
-            merged_df = pd.merge(df_today, df_link, on='PostID', how='left')
-
-            return merged_df, df_sold
-        except FileNotFoundError:
-            pass  # Continue to the next date if files are not found
-
-    print("No files found within the specified date range.")
-    return None, None
-
-def display_dashboard():
-
-    df_today, df_sold = load_data()
-    new_names_today = ['Пост', 
+    def filter(self):
+        filtered_df = self.df.copy()
+        for key, values in st.session_state[self.filters_name].items():
+            if values:
+                filtered_df = filtered_df[filtered_df[key].isin(values)]
+        return filtered_df
+    
+    
+class Dashboard:
+    def __init__(self):
+        self.apps = []
+        self.new_names_today = ['Пост', 
                 'PostID', 
                 'Имя автора', 
                 'AuthorID', 
@@ -115,272 +133,157 @@ def display_dashboard():
                 'Модель',
                 'Link']
     
-    new_names_sold = ['Пост', 
-                'PostID', 
-                'Имя автора', 
-                'AuthorID', 
-                'WhatsApp', 
-                'Дата публикации',
-                'Description', 
-                'Цена', 
-                'Город', 
-                'Кузов', 
-                'Год выпуска', 
-                'Цвет',
-                'Привод', 
-                'Объем двигателя', 
-                'Состояние', 
-                'Вид топлива',
-                'Растаможен в РТ', 
-                'Коробка передач',
-                'Просмотры',
-                'sold_date', 
-                'Марка', 
-                'Модель',
-                'selling_time_hours']
+        self.new_names_sold = ['Пост', 
+                    'PostID', 
+                    'Имя автора', 
+                    'AuthorID', 
+                    'WhatsApp', 
+                    'Дата публикации',
+                    'Description', 
+                    'Цена', 
+                    'Город', 
+                    'Кузов', 
+                    'Год выпуска', 
+                    'Цвет',
+                    'Привод', 
+                    'Объем двигателя', 
+                    'Состояние', 
+                    'Вид топлива',
+                    'Растаможен в РТ', 
+                    'Коробка передач',
+                    'Просмотры',
+                    'sold_date', 
+                    'Марка', 
+                    'Модель',
+                    'selling_time_hours']
+        
+        self.filters_today =  [
+                    'Марка', 
+                    'Модель',
+                    'Город', 
+                    'Кузов', 
+                    'Вид топлива',
+                    'Привод', 
+                    'Коробка передач', 
+                    'Цвет',
+                    'Растаможен в РТ', 
+                    'Состояние']
+        
+        self.filters_tamozhnya = [
+            'mark',
+            'страна отправления/ экспорта'
+        ]
+        
+        self.display_columns = [
+                    'Марка', 
+                    'Модель',
+                    'Цена', 
+                    'Город', 
+                    'Год выпуска',
+                    'Вид топлива', 
+                    'Состояние',
+                    'Link']
+
+        self.filters =  [
+            'Марка', 
+            'Модель',
+            'Город', 
+            'Кузов', 
+            'Вид топлива',
+            'Привод', 
+            'Коробка передач', 
+            'Цвет',
+            'Растаможен в РТ', 
+            'Состояние',
+            'mark',
+            'страна отправления/ экспорта']
+        
+        st.session_state['filters'] = {key:[] for key in self.filters}
+
+        with open('config.yaml') as file:
+            config = yaml.load(file, Loader=SafeLoader)
+
+        self.authenticator = stauth.Authenticate(
+            config['credentials'],
+            config['cookie']['name'],
+            config['cookie']['key'],
+            config['cookie']['expiry_days'],
+            config['preauthorized']
+        )
+
+    def add_app(self, title, function):
+        self.apps.append({
+            'title': title,
+            'function': function
+        })
+
+    def display_dashboard(self):
+        df_today, df_sold, df_exracted = load_data()
+        with st.sidebar:
+            app = option_menu(
+                menu_title='Menu',
+                menu_icon=None,
+                options=['SomonTJ', 'Таможня'],
+                orientation='Horizontal',
+                default_index=0
+            )
+
+        self.authenticator.logout(f"{st.session_state['name']} Logout", 'main')
+
+        if app == 'SomonTJ':
+            copy_filters = st.session_state['filters'].copy()
+            for key in st.session_state['filters']:
+                if key not in self.filters_today:
+                    del copy_filters[key]
+
+            for key in self.filters_today:
+                if key not in copy_filters.keys():
+                    copy_filters[key] = []
+
+            st.session_state['filters'] = copy_filters
+            print('SomonTJ', st.session_state['filters'])
+            SomonTJ.app(df_today, df_sold)
+
+        if app == 'Таможня':
+            copy_filters = st.session_state['filters'].copy()
+            for key in st.session_state['filters']:
+                if key not in self.filters_tamozhnya:
+                    del copy_filters[key]
+
+            for key in self.filters_tamozhnya:
+                if key not in copy_filters.keys():
+                    copy_filters[key] = []
+                    
+            st.session_state['filters'] = copy_filters
+            print('Таможня', st.session_state['filters'])
+            Tamozhnya.app(df_exracted)
     
-    filters =  [
-                'Марка', 
-                'Модель',
-                'Город', 
-                'Кузов', 
-                'Вид топлива',
-                'Привод', 
-                'Коробка передач', 
-                'Цвет',
-                'Растаможен в РТ', 
-                'Состояние']
-    display_columns = [
-                'Марка', 
-                'Модель',
-                'Цена', 
-                'Город', 
-                'Год выпуска',
-                'Вид топлива', 
-                'Состояние',
-                'Link']
+    def run(self):
 
-    df_today.columns = new_names_today
-    df_sold.columns = new_names_sold
+        fields = {
+            'Form name': 'Login',
+            'Username': 'Username',
+            'Password': 'Password',
+            'Login': 'Login',
+        }
 
-    #Creating Filter
-    dynamic_filters = DynamicFilters(df_today, filters=filters)
-    st.sidebar.header('Задайте фильтры:')
+        # Attempting login with provided fields and settings
+        st.image('main-logo.svg', width=300)
+        self.authenticator.login(fields=fields, max_concurrent_users=1, location='main')
 
-    # Adding all filters to sidebar
-    with st.sidebar:
-        # price_range = st.sidebar.slider('Цена', 1000, 5000000, (1000, 5000000))
-        price_from = st.sidebar.number_input('Цена от', min_value=0, max_value=10000000, value=0, step=5000)
-        price_till = st.sidebar.number_input('Цена до', min_value=price_from, max_value=10000000, value=10000000, step=5000)
-        year_range = st.sidebar.slider('Год выпуска', df_today['Год выпуска'].min(), df_today['Год выпуска'].max(), (df_today['Год выпуска'].min(), df_today['Год выпуска'].max()))
-        dynamic_filters.display_filters()
+        # Checking authentication status
+        if st.session_state["authentication_status"]:
+            # Logging out if authenticated and displaying dashboard
+            logging.info(f"User '{st.session_state['name']}' logged in.")
+            self.display_dashboard()
+        elif st.session_state["authentication_status"] == False:
+            # Displaying error message if authentication fails
+            st.error('Username/password is incorrect')
+        elif st.session_state["authentication_status"] == None:
+            # Displaying warning if authentication status is not determined
+            st.warning('Please enter your username and password')
+        
 
-
-    #Applyting price and year filters to df
-    filtered_df = dynamic_filters.filter_df()
-    filtered_df = filtered_df[
-            (filtered_df['Цена'] >= price_from) & (filtered_df['Цена'] <= price_till) &
-            (filtered_df['Год выпуска'] >= year_range[0]) & (filtered_df['Год выпуска'] <= year_range[1])]
-
-
-    #Creating body for Dashboard
-    st.image('main-logo.svg', width=300)
-    # st.header('Коиноти Нав')
-
-
-    # Creating metric cards
-    col1, col2, col3, col4, col5 = st.columns(5)
-
-    col1.container(border=True).metric('Количество машин:', len(filtered_df))
-
-    if len(filtered_df['Цена']) > 0:
-        avg_price =int(filtered_df['Цена'].mean())
-    else:
-        avg_price = 0
-
-    col2.container(border=True).metric('Средняя цена в TJS:', f"{avg_price}")
-    col3.container(border=True).metric('Марки:', len(filtered_df['Марка'].unique()))
-    col4.container(border=True).metric('Модели:', len(filtered_df['Модель'].unique()))
-
-    sold_filtered = filter_dataframe(df_sold, st.session_state['filters'])
-    if len(sold_filtered)>0:
-        avg_sold_time = round(sold_filtered['selling_time_hours'].mean(),1)
-    else:
-        avg_sold_time = 'Нет данных'
-
-    col5.container(border=True).metric('Среднее время продажи.:', f'{avg_sold_time} д')
-
-
-
-    main_tab1, main_tab2 = st.tabs(["📈Charts", "🗃Table"])
-    chart_tabs = main_tab1.tabs(['🏎️Модели', '📋Бренды', '⏲️Публикации', '👨‍💼Общее', '🛢️Вид топлива', '🏙️Города', '🚙Кузов', '📆Год выпуска', '⚙️Коробка передач', '🌈Цвет', '🛠️Объем двигателя'])
-
-    #Модели graphs
-    with chart_tabs[0]:
-        modeltypes = filtered_df['Модель'].value_counts().sort_values(ascending=False)
-        brand_model_views = filtered_df.groupby(['Модель']).agg({'Просмотры': 'sum'}).reset_index()
-
-        # Sort by views in descending order
-        brand_model_views = brand_model_views.sort_values(by='Просмотры', ascending=False)
-
-        chart_tabs[0].header('Cамые распространенные модели')
-        c1, c2 = chart_tabs[0].columns([3, 1])
-        c1.container(border=True).bar_chart(modeltypes.head(30), color='#3c324c')
-        c2.dataframe(modeltypes,width=400)
-        chart_tabs[0].header('Cамые просматриваемые модели')
-        c1, c2 = chart_tabs[0].columns([3, 1])
-        c1.container(border=True).bar_chart(brand_model_views.set_index('Модель').head(30), color='#3c324c')
-        c2.dataframe(brand_model_views, width=400)
-    
-    #Brands graphs
-    with chart_tabs[1]:
-        modeltypes = filtered_df['Марка'].value_counts().sort_values(ascending=False)
-        brand_mark_views = filtered_df.groupby(['Марка']).agg({'Просмотры': 'sum'}).reset_index()
-        # Sort by views in descending order
-        brand_mark_views = brand_mark_views.sort_values(by='Просмотры', ascending=False)
-        chart_tabs[1].header('Cамые распространенные модели')
-        c1, c2 = chart_tabs[1].columns([3, 1])
-        c1.container(border=True).bar_chart(modeltypes.head(30), color='#3c324c')
-        c2.dataframe(modeltypes,width=400)
-        chart_tabs[1].header('Cамые просматриваемые модели')
-        c1, c2 = chart_tabs[1].columns([3, 1])
-        c1.container(border=True).bar_chart(brand_mark_views.set_index('Марка').head(30), color='#3c324c')
-        c2.dataframe(brand_mark_views, width=400)
-
-    #Publications graphs
-    with chart_tabs[2]:
-        filtered_df['Дата публикации'] = pd.to_datetime(filtered_df['Дата публикации'])
-
-        # Extract just the date component
-        filtered_df['Дата публикации'] = filtered_df['Дата публикации'].dt.date
-        views_per_day = filtered_df.groupby('Дата публикации')['Просмотры'].sum().sort_values(ascending=False)
-
-        # Group by date and count the number of publications made on each day
-        publications_per_day = filtered_df.groupby('Дата публикации').size().sort_values(ascending=False)
-        chart_tabs[2].header('Количество заявок за последние 30 дней')
-        chart_tabs[2].area_chart(publications_per_day.head(30), color='#3c324c')
-        chart_tabs[2].header('Количество просмотров за последние 30 дней')
-        chart_tabs[2].area_chart(views_per_day.head(30), color='#3c324c')
-
-    #Общее graphs
-    with chart_tabs[3]:
-        top_authors = filtered_df['AuthorID'].value_counts().sort_values(ascending=False).head(30)
-        top_authors_df = pd.DataFrame({
-            'AuthorID': top_authors.index,
-            'Name': [filtered_df.loc[filtered_df['AuthorID'] == author_id, 'Имя автора'].iloc[0] for author_id in top_authors.index],
-            'Count': top_authors.values
-            })
-        df_sold['sold_date'] = pd.to_datetime(df_sold['sold_date'])
-        most_selling_models = df_sold.groupby(['Модель']).size().sort_values(ascending=False).head(30)
-        # Get value counts based on the date without time, formatting dates as strings
-        month_sales = df_sold['sold_date'].dt.strftime('%Y-%m-%d').value_counts().sort_index(ascending=False)
-        # authors = top_authors['AuthorID']
-        chart_tabs[3].header('Топ 30 самых активных продавцов')
-        c1, c2 = chart_tabs[3].columns([3, 1])
-        c1.container(border=True).bar_chart(top_authors, color='#3c324c')
-        c2.dataframe(top_authors_df, hide_index=True, width=400)
-        chart_tabs[3].header('Продажи за последние 30 дней')
-        chart_tabs[3].container(border=True).area_chart(month_sales, color='#3c324c')
-        chart_tabs[3].header('Топ 30 продаваемых моделей')
-        chart_tabs[3].container(border=True).bar_chart(most_selling_models, color='#3c324c')
-    
-    #Fueltype graphs
-    with chart_tabs[4]:
-        g1, g2 = chart_tabs[4].columns([2,1])
-        fueltypes = filtered_df['Вид топлива'].value_counts()
-        fuel_df = pd.DataFrame(fueltypes)
-        fuel_df['Percentage'] = round((fuel_df['count'] / fuel_df['count'].sum()) * 100, 1)
-        g1.container(border=True).bar_chart(fueltypes, color='#3c324c')
-        g2.dataframe(fuel_df)
-    
-    #City graphs
-    with chart_tabs[5]:
-        citytypes = filtered_df['Город'].value_counts()
-        chart_tabs[5].container(border=True).bar_chart(citytypes, color='#3c324c')
-    
-    #Kuzov graphs
-    with chart_tabs[6]:
-        g1, g2 = chart_tabs[6].columns(2)
-        kuzovtypes = filtered_df['Кузов'].value_counts()
-        kuzov_df = pd.DataFrame(kuzovtypes)
-        kuzov_df['Percentage'] = round((kuzov_df['count'] / kuzov_df['count'].sum()) * 100, 1)
-        g1.container(border=True).bar_chart(kuzovtypes, color='#3c324c')
-        g2.dataframe(kuzov_df)
-    
-    #Year graphs
-    with chart_tabs[7]:
-        yeartypes = filtered_df['Год выпуска'].value_counts()
-        average_price_per_year_df = filtered_df.groupby('Год выпуска')['Цена'].mean().reset_index()
-
-        # Convert the 'Цена' column (average price) to integers
-        average_price_per_year_df['Цена'] = average_price_per_year_df['Цена'].astype(int)
-        chart_tabs[7].container(border=True).bar_chart(yeartypes, color='#3c324c')
-        chart_tabs[7].dataframe(average_price_per_year_df, width=400)
-    
-    #Коробка передач graphs
-    with chart_tabs[8]:
-        g1, g2 = chart_tabs[8].columns(2)
-        korobkatypes = filtered_df['Коробка передач'].value_counts()
-        korobka_df = pd.DataFrame(korobkatypes)
-        korobka_df['Percentage'] = round((korobka_df['count'] / korobka_df['count'].sum()) * 100, 1)
-        g1.container(border=True).bar_chart(korobkatypes, color='#3c324c')
-        g2.dataframe(korobka_df)
-    
-    #Цвет graphs
-    with chart_tabs[9]:
-        g1, g2 = chart_tabs[9].columns(2)
-        colortypes = filtered_df['Цвет'].value_counts()
-        color_df = pd.DataFrame(colortypes)
-        color_df['Percentage'] = round((color_df['count'] / color_df['count'].sum()) * 100, 1)
-        g1.container(border=True).bar_chart(colortypes, color='#3c324c')
-        g2.dataframe(color_df)
-    
-    #Объем двигателя graphs
-    with chart_tabs[10]:
-        volumetypes = filtered_df['Объем двигателя'].value_counts()
-        chart_tabs[10].container(border=True).area_chart(volumetypes, color='#3c324c')
-    
-    # Tables
-    c1, c2 = main_tab2.columns([2,1])
-    c1.dataframe(filtered_df[display_columns])
-    grouped_data = filtered_df.groupby(['Модель', 'Марка']).size().reset_index(name='Count')
-
-    # Display as a table
-    c2.dataframe(grouped_data, width=400)
-
-# Loading config for webpage and all registered accounts
-with open('config.yaml') as file:
-    config = yaml.load(file, Loader=SafeLoader)
-
-# Initializing an Authenticator object with provided configuration
-authenticator = stauth.Authenticate(
-    config['credentials'],
-    config['cookie']['name'],
-    config['cookie']['key'],
-    config['cookie']['expiry_days'],
-    config['preauthorized']
-)
-
-# Fields required for authentication
-fields = {
-    'Form name': 'Login',
-    'Username': 'Username',
-    'Password': 'Password',
-    'Login': 'Login',
-}
-
-# Attempting login with provided fields and settings
-authenticator.login(fields=fields, max_concurrent_users=1, location='main')
-
-# Checking authentication status
-if st.session_state["authentication_status"]:
-    # Logging out if authenticated and displaying dashboard
-    logging.info(f"User '{st.session_state['name']}' logged in.")
-    authenticator.logout(f"{st.session_state['name']} Logout", 'sidebar')
-    display_dashboard()
-elif st.session_state["authentication_status"] == False:
-    # Displaying error message if authentication fails
-    st.error('Username/password is incorrect')
-elif st.session_state["authentication_status"] == None:
-    # Displaying warning if authentication status is not determined
-    st.warning('Please enter your username and password')
+if __name__ == '__main__':
+    dashboard = Dashboard()
+    dashboard.run()
