@@ -1,5 +1,11 @@
 credentials:
   usernames:
+    user:
+      email: user@any.com
+      logged_in: false
+      name: user
+      password: PASSWORD
+      
     zefsolimp: # username
       email: zefsolimp@gmail.com #email address
       logged_in: false # Check if user is logged in (Will be managed automatically)
