@@ -147,7 +147,7 @@ def app(df_today, df_sold):
 
     col5.container(border=True).metric("Среднее время продажи.:", f"{avg_sold_time} д")
 
-    main_tab1, main_tab2 = st.tabs(["📈Charts", "🗃Table"])
+    main_tab1, main_tab2, main_tab3 = st.tabs(["📈Графики", "🗃Таблицы", "🧮 Сравнение"])
     chart_tabs = main_tab1.tabs(["🏎️Модели", "📋Бренды", "⏲️Публикации", "👨‍💼Общее", "🛢️Вид топлива", "🏙️Города", "🚙Кузов", "📆Год выпуска", "⚙️Коробка передач", "🌈Цвет", "🛠️Объем двигателя"])
 
     #Модели graphs
@@ -288,4 +288,71 @@ def app(df_today, df_sold):
     # Display as a table
     c2.dataframe(grouped_data, width=400)
 
+    #Comparison between different cars
+    car1_df = df_today.copy()
+    car2_df = df_today.copy()
 
+    compare_brand = main_tab3.columns(2)
+    compare_model = main_tab3.columns(2)
+
+    mark1 = compare_brand[0].multiselect("Выберите Марка", options=car1_df['Марка'].unique(), key="mark1_unique_key")
+    mark2 = compare_brand[1].multiselect("Выберите Марка", options=car2_df['Марка'].unique(), key="mark2_unique_key")
+    model1 = compare_model[0].multiselect("Выберите Модель", options=car1_df['Модель'].unique(), key="model1_unique_key")
+    model2 = compare_model[1].multiselect("Выберите Модель", options=car2_df['Модель'].unique(), key="model2_unique_key")
+    
+    filter1 = {"Марка": mark1, "Модель": model1}
+    filter2 = {"Марка": mark2, "Модель": model2}
+
+    for i in filter1.keys():
+        if filter1[i]:
+            car1_df = car1_df[car1_df[i].isin(filter1[i])]
+
+    for i in filter2.keys():
+        if filter2[i]:
+            car2_df = car2_df[car2_df[i].isin(filter2[i])]
+
+    print(len(car1_df["Цена"]), len(car2_df["Цена"]))
+
+    comparison = main_tab3.columns(2)
+    with comparison[0]:
+        info = comparison[0].columns([3,3,4])
+        if len(car1_df) > 0:
+            price = round(car1_df["Цена"].mean())
+            count = len(car1_df)
+            prc = round(len(car1_df)/len(df_today)*100,1)
+        else:
+            price = 0
+            count = 0
+            prc = 0
+
+        info[0].container(border=True).metric("Количество", count)
+        info[1].container(border=True).metric("Охват", f'{prc}%')
+        info[2].container(border=True).metric("Цена", price)
+
+    with comparison[1]:
+        info = comparison[1].columns([3,3,4])
+        if len(car2_df) > 0:
+            price = round(car2_df["Цена"].mean())
+            count = len(car2_df)
+            prc = round(len(car2_df)/len(df_today)*100,2)
+        else:
+            price = 0
+            count = 0
+            prc = 0
+
+        info[0].container(border=True).metric("Количество", count)
+        info[1].container(border=True).metric("Охват", f'{prc}%')
+        info[2].container(border=True).metric("Цена", price)
+
+    comparison_views = main_tab3.columns(2)
+    views_total = df_today['Просмотры'].sum()
+    with comparison_views[0]:
+        info = comparison_views[0].columns([4,3,3])
+        info[0].container(border=True).metric("Просмотры", car1_df['Просмотры'].sum())
+        info[1].container(border=True).metric("Доля Просмотров", f"{round(car1_df['Просмотры'].sum()/views_total*100,2)}%")
+        info[2].container(border=True).metric("Просмотров на машину", round(car1_df['Просмотры'].sum()/len(car1_df['Просмотры']),2))
+    with comparison_views[1]:
+        info = comparison_views[1].columns([4,3,3])
+        info[0].container(border=True).metric("Просмотры", car2_df['Просмотры'].sum())
+        info[1].container(border=True).metric("Доля Просмотров", f"{round(car2_df['Просмотры'].sum()/views_total*100,2)}%")
+        info[2].container(border=True).metric("Просмотров на машину", round(car2_df['Просмотры'].sum()/len(car2_df['Просмотры']),2))
