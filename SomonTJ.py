@@ -311,8 +311,6 @@ def app(df_today, df_sold):
         if filter2[i]:
             car2_df = car2_df[car2_df[i].isin(filter2[i])]
 
-    print(len(car1_df["Цена"]), len(car2_df["Цена"]))
-
     comparison = main_tab3.columns(2)
     with comparison[0]:
         info = comparison[0].columns([3,3,4])
