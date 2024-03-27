@@ -7,3 +7,4 @@ streamlit==1.31.1
 streamlit_authenticator==0.3.1
 streamlit_dynamic_filters==0.1.5
 streamlit_option_menu==0.3.12
+openpyxl==3.1.2
