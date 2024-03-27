@@ -274,7 +274,7 @@ class Dashboard:
         # Checking authentication status
         if st.session_state["authentication_status"]:
             # Logging out if authenticated and displaying dashboard
-            print(f"User '{st.session_state['name']}' logged in.")
+            print(f"{datetime.now()} - User '{st.session_state['name']}' logged in.")
             logging.info(f"User '{st.session_state['name']}' logged in.")
             self.display_dashboard()
         elif st.session_state["authentication_status"] == False:
