@@ -1,11 +1,12 @@
 import pandas as pd
 import streamlit as st
-from streamlit_dynamic_filters import DynamicFilters
 from NewFilter import MyFilter
 
-
-
 def app(df_exracted):
+    df_exracted['Дата оформ.'] = pd.to_datetime(df_exracted['Дата оформ.'])
+
+
+    df_exracted['Month'] = df_exracted['Дата оформ.'].dt.strftime('%Y-%m')
     filters_tamozhnya = [
             'mark',
             'страна отправления/ экспорта'
@@ -20,11 +21,17 @@ def app(df_exracted):
         price_till = st.sidebar.number_input('Цена до', min_value=price_from, max_value=500000, value=500000, step=5000)
         year_range = st.sidebar.slider('year', 1950, 2024, (1950,2024))
         dynamic_filters_tamozhnya.display_filters()
+        st.sidebar.text('Выберите даты импорта: ')
+        date_start = st.sidebar.date_input('Начало', max_value=df_exracted['Дата оформ.'].max(), min_value=df_exracted['Дата оформ.'].min(), value=df_exracted['Дата оформ.'].min())
+        date_end = st.sidebar.date_input('Конец', min_value=date_start, max_value=df_exracted['Дата оформ.'].max(), value=df_exracted['Дата оформ.'].max())
+
+    date_start, date_end = pd.to_datetime(date_start), pd.to_datetime(date_end)
     #Applyting price and year filters to df
     filtered_df = dynamic_filters_tamozhnya.filter()
     filtered_df = filtered_df[
             (filtered_df['Статистическая  стоимость '] >= price_from) & (filtered_df['Статистическая  стоимость '] <= price_till) &
-            (filtered_df['year'] >= year_range[0]) & (filtered_df['year'] <= year_range[1])]
+            (filtered_df['year'] >= year_range[0]) & (filtered_df['year'] <= year_range[1]) &
+            (filtered_df['Дата оформ.'] >= date_start) & (filtered_df['Дата оформ.'] <= date_end)]
 
     # Tamozhnya tab
     col_tamozhnya = st.columns(5)
@@ -33,7 +40,8 @@ def app(df_exracted):
         mark_count = len(filtered_df['mark'].unique())
         mode_year = int(filtered_df['year'].mode()[0])
         stat_price = int(filtered_df['Статистическая  стоимость '].mean())
-        total_tax = round(filtered_df['total tax'].mean(),1)
+        # total_tax = round(filtered_df['total tax'].mean(),1)
+        exporters = len(filtered_df['Отправитель/экспортер'].unique())
     else:
         mark_count = 0
         mode_year = 0
@@ -58,9 +66,9 @@ def app(df_exracted):
 
     # Total tax
     with col_tamozhnya[4]:
-        col_tamozhnya[4].container(border=True).metric('Налоги в среднем TJS:', f"{total_tax}")
+        col_tamozhnya[4].container(border=True).metric('Отправители:', f"{exporters}")
 
-    tabs = st.tabs(['📋Бренды', '🏙️Страны', '📆Год выпуска', '👨‍💼Общее'])
+    tabs = st.tabs(['📋Бренды', '🏙️Страны', '📆Год выпуска', '👨‍💼Отправители', 'Импорт по месяцам'])
 
     with tabs[0]:
         marktypes = filtered_df['mark'].value_counts().sort_values(ascending=False)
@@ -122,4 +130,31 @@ def app(df_exracted):
         c1, c2 = tabs[2].columns([2, 1])
         c1.container(border=True).bar_chart(total_tax_per_year.head(30), color='#3c324c')
         c2.dataframe(total_tax_per_year,width=400)
-        
+    
+    with tabs[3]:
+        exporters = filtered_df['Отправитель/экспортер'].value_counts().sort_values(ascending=False)
+
+        tabs[3].header('Самые активные экспортеры')
+        tabs[3].container(border=True).bar_chart(exporters.head(30), color='#3c324c')
+
+        exporters_df = exporters.reset_index()
+        exporters_df.columns = ['Отправитель/экспортер', 'Количество']
+
+        # Display the dataframe in the second column
+        tabs[3].dataframe(exporters_df)
+
+    with tabs[4]:
+        # Group by month and count occurrences
+        months = filtered_df['Month'].value_counts().sort_index()
+
+        tabs[4].header('Самые активные экспортеры по месяцам')
+
+        # Display the bar chart
+        tabs[4].container(border=True).bar_chart(months.head(30), color='#3c324c')
+
+        # Convert the series to DataFrame and reset the index
+        exporters_df = months.reset_index()
+        exporters_df.columns = ['Месяц', 'Количество']
+
+        # Display the dataframe in the second column
+        tabs[4].dataframe(exporters_df, width=400)
