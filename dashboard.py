@@ -241,7 +241,7 @@ class Dashboard:
                     copy_filters[key] = []
 
             st.session_state['filters'] = copy_filters
-            print('SomonTJ', st.session_state['filters'])
+            # print('SomonTJ', st.session_state['filters'])
             SomonTJ.app(df_today, df_sold)
 
         if app == 'Таможня':
@@ -255,7 +255,7 @@ class Dashboard:
                     copy_filters[key] = []
                     
             st.session_state['filters'] = copy_filters
-            print('Таможня', st.session_state['filters'])
+            # print('Таможня', st.session_state['filters'])
             Tamozhnya.app(df_exracted)
     
     def run(self):
@@ -274,6 +274,7 @@ class Dashboard:
         # Checking authentication status
         if st.session_state["authentication_status"]:
             # Logging out if authenticated and displaying dashboard
+            print(f"User '{st.session_state['name']}' logged in.")
             logging.info(f"User '{st.session_state['name']}' logged in.")
             self.display_dashboard()
         elif st.session_state["authentication_status"] == False:
