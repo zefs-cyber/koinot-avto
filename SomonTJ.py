@@ -3,6 +3,8 @@ import streamlit as st
 from streamlit_dynamic_filters import DynamicFilters
 from datetime import datetime, timedelta
 from NewFilter import MyFilter
+import plotly.figure_factory as ff
+import numpy as np
 
 
 
@@ -354,3 +356,33 @@ def app(df_today, df_sold):
         info[0].container(border=True).metric("Просмотры", car2_df['Просмотры'].sum())
         info[1].container(border=True).metric("Доля Просмотров", f"{round(car2_df['Просмотры'].sum()/views_total*100,2)}%")
         info[2].container(border=True).metric("Просмотров на машину", round(car2_df['Просмотры'].sum()/len(car2_df['Просмотры']),2))
+
+    # compare graphs
+    compare_df = pd.concat([car2_df, car1_df]).drop_duplicates()[['Модель', 'Цена']]
+    
+    model_counts = compare_df["Модель"].value_counts().sort_values(ascending=False)
+    models_list = model_counts.index.tolist()[:6]
+
+    means = [np.mean(compare_df[compare_df['Модель'] == model]['Цена']) for model in models_list]
+    std_devs = [np.std(compare_df[compare_df['Модель'] == model]['Цена']) for model in models_list]
+
+    # Filter out numbers within 2 standard deviations from the mean
+    filtered_prices = []
+    max_len = max(len(compare_df[compare_df['Модель'] == model]['Цена']) for model in models_list)
+
+    for model, mean, std_dev in zip(models_list, means, std_devs):
+        model_prices = compare_df[compare_df['Модель'] == model]['Цена']
+        filtered_prices.append(model_prices[(model_prices >= mean - 2 * std_dev) & (model_prices <= mean + 2 * std_dev)].tolist())
+
+
+    fig = ff.create_distplot(
+            filtered_prices,
+            models_list,
+            show_curve=True,
+    )
+
+    for i in range(len(filtered_prices)):
+        fig.data[i].autobinx = True
+
+    main_tab3.header('Распределение цен')
+    main_tab3.plotly_chart(fig, use_container_width=True)
