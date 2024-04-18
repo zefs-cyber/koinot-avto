@@ -31,6 +31,7 @@ def load_data():
 
             # Convert columns to appropriate data types
             df_today['AuthorID'] = pd.to_numeric(df_today['AuthorID'], errors='coerce')
+            df_today = df_today[(df_today["Price"] >= 1000) & (df_today["Price"] <= 5000000)]
             df_sold['DatePublished'] = pd.to_datetime(df_sold['DatePublished'], format='%d.%m.%Y %H:%M')
             df_sold['sold_date'] = pd.to_datetime(df_sold['sold_date'], format='%d.%m.%Y %H:%M')
 
@@ -241,7 +242,7 @@ class Dashboard:
                     copy_filters[key] = []
 
             st.session_state['filters'] = copy_filters
-            # print('SomonTJ', st.session_state['filters'])
+            print('SomonTJ', st.session_state['filters'])
             SomonTJ.app(df_today, df_sold)
 
         if app == 'Таможня':
@@ -255,7 +256,7 @@ class Dashboard:
                     copy_filters[key] = []
                     
             st.session_state['filters'] = copy_filters
-            # print('Таможня', st.session_state['filters'])
+            print('Таможня', st.session_state['filters'])
             Tamozhnya.app(df_exracted)
     
     def run(self):
@@ -274,7 +275,6 @@ class Dashboard:
         # Checking authentication status
         if st.session_state["authentication_status"]:
             # Logging out if authenticated and displaying dashboard
-            print(f"{datetime.now()} - User '{st.session_state['name']}' logged in.")
             logging.info(f"User '{st.session_state['name']}' logged in.")
             self.display_dashboard()
         elif st.session_state["authentication_status"] == False:
