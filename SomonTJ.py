@@ -5,6 +5,8 @@ from datetime import datetime, timedelta
 from NewFilter import MyFilter
 import plotly.figure_factory as ff
 import numpy as np
+import plotly.graph_objects as go
+
 
 
 
@@ -149,7 +151,7 @@ def app(df_today, df_sold):
 
     col5.container(border=True).metric("Среднее время продажи.:", f"{avg_sold_time} д")
 
-    main_tab1, main_tab2, main_tab3 = st.tabs(["📈Графики", "🗃Таблицы", "🧮 Сравнение"])
+    main_tab1, main_tab2, main_tab3, main_tab4 = st.tabs(["📈Графики", "🗃Таблицы", "🧮 Сравнение", "📈Динамика Цен"])
     chart_tabs = main_tab1.tabs(["🏎️Модели", "📋Бренды", "⏲️Публикации", "👨‍💼Общее", "🛢️Вид топлива", "🏙️Города", "🚙Кузов", "📆Год выпуска", "⚙️Коробка передач", "🌈Цвет", "🛠️Объем двигателя"])
 
     #Модели graphs
@@ -281,7 +283,7 @@ def app(df_today, df_sold):
     with chart_tabs[10]:
         volumetypes = filtered_df["Объем двигателя"].value_counts()
         chart_tabs[10].container(border=True).area_chart(volumetypes, color="#3c324c")
-
+        
     # Tables
     c1, c2 = main_tab2.columns([2,1])
     c1.dataframe(filtered_df[display_columns])
@@ -386,3 +388,64 @@ def app(df_today, df_sold):
 
     main_tab3.header('Распределение цен')
     main_tab3.plotly_chart(fig, use_container_width=True)
+
+    #Динамика цен
+    with main_tab4:
+        df_price = pd.read_excel('Pricetags.xlsx')
+        df_price.rename(columns={"Unnamed: 0": "mark_model"}, inplace=True)
+        mark_model = (filtered_df['Марка'] + " " + filtered_df['Модель']).str.replace("  ", " ").unique()
+        main_tab4.title("Динамика цен")
+        dates = df_price.columns[1:]
+        min_date = datetime.strptime(dates[0], '%d.%m.%Y')
+        max_date = datetime.strptime(dates[-1], '%d.%m.%Y')
+
+        if len(mark_model) <= 3:
+            c1, c2 = main_tab4.columns(2)
+            date_start = c1.date_input('Начало:', value=min_date, min_value=min_date, max_value=max_date, format='DD.MM.YYYY')
+            date_end = c2.date_input('Конец:', value=datetime.now(), min_value=min_date, max_value=max_date, format='DD.MM.YYYY')
+
+            # Convert the selected dates to pandas Timestamp objects
+            date_start = pd.Timestamp(date_start)
+            date_end = pd.Timestamp(date_end)
+
+            # Filter columns based on the selected date range
+            df_price_columns = pd.to_datetime(df_price.columns[1:], format='%d.%m.%Y')
+            selected_columns = df_price.columns[1:][(df_price_columns >= date_start) & (df_price_columns <= date_end)]
+
+            # Select the columns from the DataFrame
+            selected_data = df_price[['mark_model'] +list(selected_columns)][df_price['mark_model'].isin(mark_model)]            
+
+            # Prepare the data for the line chart
+            data = []
+            date_columns = selected_data.columns[1:]
+            for index, row in selected_data.iterrows():
+                model_prices = [row[col] for col in date_columns]
+                data.append(go.Line(x=date_columns, y=model_prices, mode='lines', name=row['mark_model']))
+
+            # Create the line chart
+            fig = go.Figure(data=data)
+
+            # Update layout settings
+            fig.update_layout(
+                xaxis_title='Дата',
+                yaxis_title='Цена',
+                hovermode='closest',
+                xaxis=dict(
+                    tickformat='DD.MM',
+                    showticklabels = False
+                    
+                ),
+                height=600,  # Adjust height as needed
+                width=1000   # Adjust width as needed
+            )
+
+            # Display the line chart
+            st.plotly_chart(fig)
+
+
+
+        else:
+            main_tab4.text('Пожалуйста выберите до 3 моделей')
+        # date_start = c1.date_input()
+        # date_end = c2.date_input()
+
