@@ -8,6 +8,7 @@ import concurrent.futures  # Importing concurrent.futures for parallel execution
 from datetime import datetime, timedelta  # Importing datetime for working with dates and times
 import threading  # Importing threading for threading operations
 import math  # Importing math library for mathematical operations
+import os
 
 
 logging.basicConfig(filename='error_log.log', level=logging.DEBUG, format='%(asctime)s - %(levelname)s: %(message)s')  # Configuring logging
@@ -372,8 +373,56 @@ class CarMain:
             # Logging error if there's an issue exporting names
             logging.error(f'Error exporting names: {str(e)}')
 
+    def price_tags(self):
+        # Get a list of all Excel files in the export directory that contain "ttoday_" in their name
+        excel_files = [file for file in os.listdir('export') if file.startswith('ttoday_') and file.endswith('.xlsx')]
+
+        # Initialize an empty list to store dataframes
+        dfs = []
+        # Read each Excel file into a dataframe and append it to the list
+        for file in excel_files:
+            df = pd.read_excel(os.path.join('export', file))
+            dfs.append(df)
+
+        # Concatenate all dataframes into one dataframe
+        merged_df = pd.concat(dfs, ignore_index=True)
+
+        merged_df['DatePublished'] = pd.to_datetime(merged_df['DatePublished'], format='%d.%m.%Y %H:%M')
+
+        # Sort the DataFrame by the 'DatePublished' column in ascending order
+        merged_df.sort_values(by='DatePublished', inplace=True)
+
+        # Convert 'DatePublished' back to the desired string format
+        merged_df['Date'] = merged_df['DatePublished'].dt.strftime('%d.%m.%Y')
+        merged_df['Time'] = merged_df['DatePublished'].dt.strftime('%H:%M:%S')
+        dates = list(merged_df['Date'].unique())
+        merged_df['Mark Model'] = (merged_df['Mark'] + " " + merged_df['Model']).str.replace("  ", " ")
+        mark_model = merged_df['Mark Model'].unique()
+
+        grouped_df = merged_df.groupby(['Mark Model', 'Date'])['Price'].mean().reset_index()
+        grouped_df.set_index('Mark Model', inplace=True)
+
+        # Create an empty DataFrame to store the prices
+        prices = pd.DataFrame(index=mark_model, columns=dates)
+
+        # Iterate over each row in grouped_df
+        for index, row in grouped_df.iterrows():
+            car_brand = index  # 'Mark Model' is the index of grouped_df
+            date = row['Date']
+            price = row['Price']
+            if date in prices.columns:
+                prices.loc[car_brand, date] = price
+
+        # Convert the 'Price' column to numeric (optional)
+        prices = prices.apply(pd.to_numeric)
+
+        prices.to_excel('Pricetags.xlsx')
+
+
+
 collector = CarMain()
 collector.update()
 collector.export()
+collector.price_tags()
 
 # print(collector.check_links())
