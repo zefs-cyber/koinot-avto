@@ -402,7 +402,7 @@ def app(df_today, df_sold):
         if len(mark_model) <= 3:
             c1, c2 = main_tab4.columns(2)
             date_start = c1.date_input('Начало:', value=min_date, min_value=min_date, max_value=max_date, format='DD.MM.YYYY')
-            date_end = c2.date_input('Конец:', value=datetime.now(), min_value=min_date, max_value=max_date, format='DD.MM.YYYY')
+            date_end = c2.date_input('Конец:', value=max_date, min_value=min_date, max_value=max_date, format='DD.MM.YYYY')
 
             # Convert the selected dates to pandas Timestamp objects
             date_start = pd.Timestamp(date_start)
